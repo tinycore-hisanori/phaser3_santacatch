@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <meta name="viewport"
+        content="width = device-width, initial-scale = 1.0, minimum-scale = 1, maximum-scale = 1, user-scalable = no, viewport-fit=cover,minimal-ui" />
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.17.1/build/matter.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <script>
+        var gameHeight = 720, gameWidth = 1280;
+        var currentScene;
+        var playerX = 0;
+        var player;
+        var cursors;
+        var santa;
+        var presentArray= [];
+        var presentCnt = 0;
+        var txtScore;
+        var remainTime, secondTimer, scoreValue;
+        var cntTimer = 0;
+
+        function UIInit(){
+            txtScore = currentScene.add
+                .text(50, 20, "SCORE:0")
+                .setScrollFactor(0)
+                .setFontSize(30)
+                .setStroke("#ffffff", 2)
+                .setColor("#ffffff");
+        }
+    
+        class presentContainer extends Phaser.GameObjects.Container {
+            constructor(scene, x, y, _no, _dir) {
+                super(scene, x, y);
+                this._obj = scene.add.sprite(0, 0, "present");
+                this.add(this._obj);
+                this.setSize(150, 150);
+                this._bodyObj = scene.matter.add.gameObject(this);
+                this._bodyObj.setFixedRotation();
+                this._bodyObj.body.label = "present";
+
+                this._bodyObj.body.noCount = _no;
+                this.noCount = _no;
+                this.cntTime = 0;
+                scene.add.existing(this._bodyObj);
+                if (_dir != 0) {
+                    console.log("GO");
+                    this._bodyObj.setVelocityX(_dir);
+                }
+            }
+            preUpdate(time, delta) {
+                if(this._bodyObj.y > 720){
+                    this._bodyObj.destroy();
+                }
+            }
+            doDestory(){
+                this._bodyObj.destroy();
+            }
+        }
+
+
+        class playerContainer extends Phaser.GameObjects.Container {
+            constructor(scene, x, y) {
+                super(scene, x, y);
+                this._obj = scene.add.sprite(0, 0, "player");
+                this.add(this._obj);
+                this.setSize(200, 70);
+                this._bodyObj = scene.matter.add.gameObject(this);
+                this._bodyObj.setFixedRotation();
+                this._bodyObj.body.label = "player";
+                this._bodyObj.setBounce(0.1);
+                this._bodyObj.body.friction = 0;
+                this._bodyObj.setMass(18);
+                this._bodyObj.body.isStatic = true;
+                scene.add.existing(this._bodyObj);
+            }
+        }
+
+
+        class titleScene extends Phaser.Scene {
+            constructor() {
+                super({ key: "titleScene", active: true });
+            }
+            create() {
+                currentScene = this;
+                let text = this.add
+                    .text(450, 100, "Santa Catch")
+                    .setFontSize(46)
+                    .setColor("#0");
+
+                var clickButton = this.add
+                    .text(400, 600, "START TO CLICK")
+                    .setStroke("#0000ff", 4)
+                    .setBackgroundColor("#ddbcff")
+                    .setFontSize("60px")
+                    .setColor("#0f0")
+                    .setInteractive();
+                clickButton.on(
+                    "pointerdown",
+                    () => {
+                        this.scene.start("gameScene");
+                    },
+                    this
+                );
+            }
+        }
+
+
+        class gameScene extends Phaser.Scene {
+            constructor() {
+                super({ key: "gameScene", active: false });
+            }
+            preload(){
+                this.load.image("bg001", "./bg.png");
+                this.load.image("player", "./player.png");
+                this.load.spritesheet("santa", "./santa_300x200.png", {
+                    frameWidth: 300,
+                    frameHeight: 200
+                });                
+                this.load.image("present", "./present.png");
+
+            }
+            create() {
+                currentScene = this;
+                currentScene.matter.world.setBounds(0, 0, gameWidth, gameHeight + 1000);
+
+                var bg = currentScene.add
+                .tileSprite(0, 0, gameWidth, gameHeight, "bg001")
+                .setOrigin(0)
+                .setScrollFactor(0);
+
+                var playerX = gameWidth / 2;
+                player = new playerContainer(currentScene,playerX, gameHeight - 100);
+                cursors = currentScene.input.keyboard.createCursorKeys();
+
+                santa = currentScene.add.sprite(gameWidth - 100, 100, "santa");
+                santa.setFrame(0);
+                currentScene.anims.create({
+                    key: "presentWaste",
+                    frameRate: 20,
+                    frames: this.anims.generateFrameNumbers("santa", { start: 0, end: 4 }),
+                    repeat: 0
+                });
+
+                UIInit();
+                this.matter.world.on("collisionstart", function (e) {
+                    e.pairs.forEach(function (p) {
+                        if (p.bodyA.label == "player" && p.bodyB.label == "present") {
+                            console.log("POINT");
+                            let obj = presentArray.find(o => o.noCount === p.bodyB.noCount);
+                            obj.doDestory();
+                            scoreValue = scoreValue + 1;
+                            txtScore.text = "SCORE:" + scoreValue;
+                        }
+                        else if (p.bodyA.label == "present" && p.bodyB.label == "player") {
+                            console.log("POINT");
+                            let obj = presentArray.find(o => o.noCount === p.bodyA.noCount);
+                            obj.doDestory();
+                            scoreValue = scoreValue + 1;
+                            txtScore.text = "SCORE:" + scoreValue;
+                        }
+                    });
+                });
+
+                presentArray= [];
+                presentCnt = 0;
+                scoreValue = 0;
+                remainTime = 0;
+                secondTimer = 0;
+                cntTimer = 60 * 2;
+            }
+
+            update() {
+                if(cntTimer == 0){
+                    var min = 2;
+                    var max = 4;
+                    cntTimer = 60 * Math.floor( Math.random() * (max + 1 - min));
+                    santa.play("presentWaste");
+                    min = 15;
+                    max = 50;
+                    var power = -1 * Math.floor( Math.random() * (max + 1 - min));
+                    presentCnt = presentCnt + 1;
+                    var tmp = new presentContainer(currentScene, santa.x, santa.y, presentCnt, power);
+                    presentArray.push(tmp);
+                }  else {
+                    cntTimer = cntTimer - 1;
+                }
+                if (cursors.left.isDown) {
+                    player.x = player.x - 5;
+                } else if (cursors.right.isDown) {
+                    player.x = player.x + 5;
+                } else {
+                }
+            }
+        }
+       
+
+        var config = {
+            type: Phaser.AUTO,
+            width: gameWidth,
+            height: gameHeight,
+            backgroundColor: "#eaffff",
+            autoResize: true,
+            physics: {
+                default: "matter",
+                matter: {
+                    gravity: {
+                        x: 0,
+                        y: 2.5
+                    },
+                    debug: true
+                }
+            },
+            scale: {
+                mode: Phaser.Scale.FIT,
+                autoCenter: Phaser.Scale.CENTER_BOTH
+            },
+            scene: [titleScene, gameScene]
+        };
+        var game = new Phaser.Game(config);
+    </script>
+</body>
+
+</html>
