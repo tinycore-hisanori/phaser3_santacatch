@@ -8,6 +8,7 @@
         content="width = device-width, initial-scale = 1.0, minimum-scale = 1, maximum-scale = 1, user-scalable = no, viewport-fit=cover,minimal-ui" />
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/matter-js@0.17.1/build/matter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -19,21 +20,41 @@
         var player;
         var cursors;
         var santa;
-        var presentArray= [];
+        var presentArray = [];
         var presentCnt = 0;
-        var txtScore;
+        var txtScore, txtTime;
         var remainTime, secondTimer, scoreValue;
         var cntTimer = 0;
+        var bGame = false;
+        var hiScore = 0;
+        var txtHiScore;
 
-        function UIInit(){
+        
+        function UIInit() {
             txtScore = currentScene.add
                 .text(50, 20, "SCORE:0")
                 .setScrollFactor(0)
                 .setFontSize(30)
                 .setStroke("#ffffff", 2)
                 .setColor("#ffffff");
+
+            txtTime = currentScene.add
+                .text(250, 20, "TIME:30")
+                .setScrollFactor(0)
+                .setFontSize(30)
+                .setStroke("#ffffff", 2)
+                .setColor("#ffffff");
+
+            txtHiScore = currentScene.add
+                .text(400, 400, "")
+                .setScrollFactor(0)
+                .setFontSize(40)
+                .setStroke("#ffffff", 2)
+                .setColor("#ffff00");
+
+
         }
-    
+
         class presentContainer extends Phaser.GameObjects.Container {
             constructor(scene, x, y, _no, _dir) {
                 super(scene, x, y);
@@ -54,11 +75,11 @@
                 }
             }
             preUpdate(time, delta) {
-                if(this._bodyObj.y > 720){
+                if (this._bodyObj.y > 720) {
                     this._bodyObj.destroy();
                 }
             }
-            doDestory(){
+            doDestory() {
                 this._bodyObj.destroy();
             }
         }
@@ -107,6 +128,22 @@
                     },
                     this
                 );
+
+                var txtHS = this.add
+                    .text(400, 400, "")
+                    .setFontSize(46)
+                    .setColor("#0");
+
+                localforage.getItem("santaCatchScore", function (err, value) {
+                    if (value != null) {
+                        hiScore = value;                        
+                    }else {
+                        hiScore = 0;                        
+
+                    }
+                    txtHS.text = "HISCORE:" + hiScore;
+                });
+
             }
         }
 
@@ -115,13 +152,13 @@
             constructor() {
                 super({ key: "gameScene", active: false });
             }
-            preload(){
+            preload() {
                 this.load.image("bg001", "./bg.png");
                 this.load.image("player", "./player.png");
                 this.load.spritesheet("santa", "./santa_300x200.png", {
                     frameWidth: 300,
                     frameHeight: 200
-                });                
+                });
                 this.load.image("present", "./present.png");
 
             }
@@ -130,12 +167,12 @@
                 currentScene.matter.world.setBounds(0, 0, gameWidth, gameHeight + 1000);
 
                 var bg = currentScene.add
-                .tileSprite(0, 0, gameWidth, gameHeight, "bg001")
-                .setOrigin(0)
-                .setScrollFactor(0);
+                    .tileSprite(0, 0, gameWidth, gameHeight, "bg001")
+                    .setOrigin(0)
+                    .setScrollFactor(0);
 
                 var playerX = gameWidth / 2;
-                player = new playerContainer(currentScene,playerX, gameHeight - 100);
+                player = new playerContainer(currentScene, playerX, gameHeight - 100);
                 cursors = currentScene.input.keyboard.createCursorKeys();
 
                 santa = currentScene.add.sprite(gameWidth - 100, 100, "santa");
@@ -167,38 +204,54 @@
                     });
                 });
 
-                presentArray= [];
+                presentArray = [];
                 presentCnt = 0;
                 scoreValue = 0;
-                remainTime = 0;
+                remainTime = 10;
+                bGame = true;
                 secondTimer = 0;
                 cntTimer = 60 * 2;
             }
 
             update() {
-                if(cntTimer == 0){
-                    var min = 2;
-                    var max = 4;
-                    cntTimer = 60 * Math.floor( Math.random() * (max + 1 - min));
-                    santa.play("presentWaste");
-                    min = 15;
-                    max = 50;
-                    var power = -1 * Math.floor( Math.random() * (max + 1 - min));
-                    presentCnt = presentCnt + 1;
-                    var tmp = new presentContainer(currentScene, santa.x, santa.y, presentCnt, power);
-                    presentArray.push(tmp);
-                }  else {
-                    cntTimer = cntTimer - 1;
-                }
-                if (cursors.left.isDown) {
-                    player.x = player.x - 5;
-                } else if (cursors.right.isDown) {
-                    player.x = player.x + 5;
-                } else {
+                if (bGame == true) {
+                    secondTimer = (secondTimer + 1) % 60;
+                    if (secondTimer == 0) {
+                        remainTime = remainTime - 1;
+                        txtTime.text = "TIME:" + remainTime;
+                        if (remainTime == 0) {
+                            bGame = false;
+                            txtTime.text = "TIMEUP!!";
+                            if(hiScore < scoreValue){
+                                txtHiScore.text = "YOU GOT HISCORE!!";
+                                hiScore = scoreValue;
+                                localforage.setItem("santaCatchScore", hiScore);
+                            }
+                        }
+                    }
+                    if (cntTimer == 0) {
+                        var min = 2;
+                        var max = 4;
+                        cntTimer = 60 * Math.floor(Math.random() * (max + 1 - min));
+                        santa.play("presentWaste");
+                        min = 15;
+                        max = 50;
+                        var power = -1 * Math.floor(Math.random() * (max + 1 - min));
+                        presentCnt = presentCnt + 1;
+                        var tmp = new presentContainer(currentScene, santa.x, santa.y, presentCnt, power);
+                        presentArray.push(tmp);
+                    } else {
+                        cntTimer = cntTimer - 1;
+                    }
+                    if (cursors.left.isDown) {
+                        player.x = player.x - 15;
+                    } else if (cursors.right.isDown) {
+                        player.x = player.x + 15;
+                    }
                 }
             }
         }
-       
+
 
         var config = {
             type: Phaser.AUTO,
