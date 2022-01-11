@@ -29,7 +29,7 @@
         var hiScore = 0;
         var txtHiScore;
 
-        
+
         function UIInit() {
             txtScore = currentScene.add
                 .text(50, 20, "SCORE:0")
@@ -52,6 +52,14 @@
                 .setStroke("#ffffff", 2)
                 .setColor("#ffff00");
 
+            currentScene.tweens.add({
+                targets: txtHiScore,
+                alpha: 0.5,
+                ease: 'Cubic.easeOut',
+                duration: 500,
+                repeat: -1,
+                yoyo: true
+            });
 
         }
 
@@ -70,7 +78,6 @@
                 this.cntTime = 0;
                 scene.add.existing(this._bodyObj);
                 if (_dir != 0) {
-                    console.log("GO");
                     this._bodyObj.setVelocityX(_dir);
                 }
             }
@@ -100,6 +107,14 @@
                 this._bodyObj.body.isStatic = true;
                 scene.add.existing(this._bodyObj);
             }
+            preUpdate(time, delta) {
+                if (this._bodyObj.x < 0) {
+                    this._bodyObj.x = 0;
+                } else if (this._bodyObj.x >= gameWidth) {
+                    this._bodyObj.x = gameWidth;
+                }
+            }
+
         }
 
 
@@ -136,9 +151,9 @@
 
                 localforage.getItem("santaCatchScore", function (err, value) {
                     if (value != null) {
-                        hiScore = value;                        
-                    }else {
-                        hiScore = 0;                        
+                        hiScore = value;
+                    } else {
+                        hiScore = 0;
 
                     }
                     txtHS.text = "HISCORE:" + hiScore;
@@ -222,24 +237,35 @@
                         if (remainTime == 0) {
                             bGame = false;
                             txtTime.text = "TIMEUP!!";
-                            if(hiScore < scoreValue){
+                            if (hiScore < scoreValue) {
                                 txtHiScore.text = "YOU GOT HISCORE!!";
                                 hiScore = scoreValue;
                                 localforage.setItem("santaCatchScore", hiScore);
+
+                                currentScene.tweens.add({
+                                    targets: txtScore,
+                                    alpha: 0.5,
+                                    ease: 'Cubic.easeOut',
+                                    duration: 500,
+                                    repeat: -1,
+                                    yoyo: true
+                                });
                             }
                         }
                     }
                     if (cntTimer == 0) {
-                        var min = 2;
-                        var max = 4;
-                        cntTimer = 60 * Math.floor(Math.random() * (max + 1 - min));
-                        santa.play("presentWaste");
-                        min = 15;
-                        max = 50;
-                        var power = -1 * Math.floor(Math.random() * (max + 1 - min));
-                        presentCnt = presentCnt + 1;
-                        var tmp = new presentContainer(currentScene, santa.x, santa.y, presentCnt, power);
-                        presentArray.push(tmp);
+                        setTimeout(function () {
+                            var min = 2;
+                            var max = 4;
+                            cntTimer = 60 * Math.floor(Math.random() * (max + 1 - min));
+                            santa.play("presentWaste");
+                            min = 15;
+                            max = 50;
+                            var power = -1 * Math.floor(Math.random() * (max + 1 - min));
+                            presentCnt = presentCnt + 1;
+                            var tmp = new presentContainer(currentScene, santa.x, santa.y, presentCnt, power);
+                            presentArray.push(tmp);
+                        }, 1);
                     } else {
                         cntTimer = cntTimer - 1;
                     }
